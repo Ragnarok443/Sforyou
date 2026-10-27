@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SForYou · Beneficios</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            petrol: { DEFAULT: '#0B4F4C', 700: '#083d3b', 600: '#0d5f5b', 50: '#e7f1f0' },
+            brand: { DEFAULT: '#00B37E', 600: '#00996b', 50: '#e6f8f2', 100: '#c9f0e2' },
+            canvas: '#F4F7F8',
+            ink: { DEFAULT: '#14302F', soft: '#5B6B6A', mute: '#8A9897' }
+          },
+          boxShadow: {
+            card: '0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.05)',
+            lift: '0 20px 35px -10px rgba(11,79,76,0.18), 0 10px 14px -8px rgba(0,0,0,0.06)'
+          },
+          borderRadius: { card: '16px' }
+        }
+      }
+    };
+  </script>
+  <style>
+    html, body { -webkit-font-smoothing: antialiased; }
+    .fade-in { animation: fade .35s ease both; }
+    @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .pop { animation: pop .18s ease both; transform-origin: top; }
+    @keyframes pop { from { opacity: 0; transform: scaleY(.96) translateY(-4px); } to { opacity: 1; transform: none; } }
+    .toast-in { animation: toastIn .3s cubic-bezier(.2,.9,.3,1.2) both; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(16px) scale(.98); } to { opacity: 1; transform: none; } }
+    .toast-out { animation: toastOut .25s ease both; }
+    @keyframes toastOut { to { opacity: 0; transform: translateY(10px); } }
+    .progress { animation: progress 1.6s linear both; }
+    @keyframes progress { from { width: 0; } to { width: 100%; } }
+    .scroll-thin::-webkit-scrollbar { width: 6px; }
+    .scroll-thin::-webkit-scrollbar-thumb { background: #d5dfde; border-radius: 6px; }
+  </style>
+</head>
+<body class="bg-canvas font-sans text-ink min-h-screen">
+
+  <div id="app"></div>
+  <div id="toasts" class="fixed bottom-4 right-4 left-4 sm:left-auto z-50 flex flex-col gap-3 items-stretch sm:items-end pointer-events-none"></div>
+
+<script>
+/* =========================================================
+   Íconos (SVG inline, trazo 1.8 estilo lineal)
+   ========================================================= */
+const I = {
+  chevronDown: '<path d="m6 9 6 6 6-6"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  arrowLeft: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+  arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  gift: '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>',
+  mail: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+  wallet: '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  trending: '<path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>',
+  health: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 11v6"/><path d="M9 14h6"/>',
+  bag: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  fuel: '<path d="M3 22h12"/><path d="M4 9h10"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 4 0V9.83a2 2 0 0 0-.59-1.42L18 5"/>',
+  fileText: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
+  salary: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/>',
+  award: '<circle cx="12" cy="8" r="6"/><path d="M15.48 12.89 17 22l-5-3-5 3 1.52-9.11"/>',
+  debt: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/>',
+  receipt: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/>',
+  payslip: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h10"/><path d="M7 11h10"/><path d="M7 15h4"/><path d="M15 15h2"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
+  building: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  at: '<circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/>',
+  lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  eye: '<path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff: '<path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="m2 2 20 20"/>',
+  alert: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>'
+};
+const icon = (name, cls = 'w-5 h-5') =>
+  `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[name]}</svg>`;
+
+/* Sonrisa estilizada (isotipo) */
+const smile = (cls = 'w-8 h-8', stroke = 'currentColor') => `
+  <svg class="${cls}" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+    <circle cx="17" cy="18" r="3" fill="${stroke}"/>
+    <circle cx="31" cy="18" r="3" fill="${stroke}"/>
+    <path d="M12 28c3.2 5.2 7.4 8 12 8s8.8-2.8 12-8" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>
+  </svg>`;
+
+/* Logo SForYou */
+const logo = (variant = 'dark') => {
+  const txt = variant === 'light' ? 'text-white' : 'text-petrol';
+  return `
+  <div class="flex items-center gap-2 select-none">
+    <div class="w-9 h-9 rounded-lg bg-brand grid place-items-center shadow-sm">
+      <span class="text-white font-extrabold text-xl leading-none -mt-px">S</span>
+    </div>
+    <span class="${txt} font-extrabold tracking-tight text-lg leading-none">FOR&nbsp;YOU</span>
+  </div>`;
+};
+
+/* =========================================================
+   Datos
+   ========================================================= */
+const COMPANIES = [
+  { id: 'grupo-argos',     name: 'Grupo Argos',     initials: 'GA', bg: '#1F3B73' },
+  { id: 'cementos-argos',  name: 'Cementos Argos',  initials: 'CA', bg: '#2C5AA0' },
+  { id: 'casa-para-mi',    name: 'Casa para mí',    initials: 'CM', bg: '#E07A2E' },
+  { id: 'celsia',          name: 'Celsia',          initials: 'Ce', bg: '#E2007A' },
+  { id: 'celsia-internet', name: 'Celsia Internet', initials: 'CI', bg: '#7A2BB8' },
+  { id: 'atera',           name: 'Atera',           initials: 'At', bg: '#0E8C8A' },
+  { id: 'odinsa',          name: 'Odinsa',          initials: 'Od', bg: '#0F6FB5' },
+  { id: 'summa',           name: 'Summa',           initials: 'Su', bg: '#0B4F4C' }
+];
+
+/* Utilidades de usuario */
+const initials = name => name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+const esc = str => str.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const ss = {
+  get(k) { try { return JSON.parse(sessionStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  clear() { try { sessionStorage.removeItem('sfy-company'); sessionStorage.removeItem('sfy-user'); } catch {} }
+};
+
+const CYCLE = {
+  label: 'Resumen ciclo 2026-2027',
+  validity: 'Vigencia del 1 de abril de 2026 al 31 de marzo de 2027',
+  beneflex: 944000,
+  fomente: 0,
+  selected: [
+    { name: 'Póliza de salud',       icon: 'health', amount: 641135, note: 'Plan complementario' },
+    { name: 'Bonos de alimentación', icon: 'bag',    amount: 200000, note: 'Redimibles en supermercados aliados' },
+    { name: 'Bonos de gasolina',     icon: 'fuel',   amount: 102865, note: 'Estaciones de servicio aliadas' }
+  ]
+};
+
+const DOCUMENTS = [
+  { id: 'salario',  name: 'Carta Cambio de Salario',               icon: 'salary',  desc: 'Constancia del último ajuste salarial.' },
+  { id: 'bono-pro', name: 'Carta bono PRO',                        icon: 'award',   desc: 'Detalle del bono por desempeño.' },
+  { id: 'deuda',    name: 'Certificado de deuda',                  icon: 'debt',    desc: 'Saldo de obligaciones con la compañía.' },
+  { id: 'ingresos', name: 'Certificado de Ingresos y Retenciones', icon: 'receipt', desc: 'Formato 220 del año gravable.' },
+  { id: 'nomina',   name: 'Comprobante de Nómina',                 icon: 'payslip', desc: 'Desprendible del último periodo pagado.' }
+];
+
+const money = n => '$' + n.toLocaleString('es-CO', { maximumFractionDigits: 0 });
+
+/* =========================================================
+   Estado y router (hash) — permite usar el botón Atrás del navegador
+   ========================================================= */
+const state = {
+  company: COMPANIES.find(c => c.id === ss.get('sfy-company')) || null,
+  user: ss.get('sfy-user'),   // { name, email } — la contraseña nunca se guarda
+  step: 'company',            // 'company' | 'credentials'
+  pending: null,       // compañía seleccionada en el combobox (aún sin ingresar)
+  comboOpen: false
+};
+
+const ROUTES = ['login', 'home', 'beneficios', 'certificados'];
+const current = () => {
+  const r = location.hash.replace('#/', '') || 'login';
+  return ROUTES.includes(r) ? r : 'login';
+};
+const go = route => { location.hash = '#/' + route; };
+
+function render() {
+  let route = current();
+  if (route !== 'login' && !(state.company && state.user)) { route = 'login'; history.replaceState(null, '', '#/login'); }
+  const app = document.getElementById('app');
+  app.innerHTML = ({ login: Login, home: Home, beneficios: Beneficios, certificados: Certificados })[route]();
+  if (route === state.lastRoute) app.querySelectorAll('.fade-in').forEach(n => n.classList.remove('fade-in'));
+  else window.scrollTo({ top: 0 });
+  state.lastRoute = route;
+  bind(route);
+}
+window.addEventListener('hashchange', render);
+
+/* =========================================================
+   Componentes compartidos
+   ========================================================= */
+function Navbar() {
+  const c = state.company;
+  return `
+  <header class="bg-petrol text-white sticky top-0 z-30 shadow-[0_2px_12px_rgba(0,0,0,0.12)]">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+      <button data-go="home" class="flex items-center gap-3 sm:gap-4 min-w-0" aria-label="Ir al inicio">
+        ${logo('light')}
+        <span class="h-7 w-px bg-white/25 hidden xs:block sm:block"></span>
+        <span class="font-extrabold tracking-[0.18em] text-sm sm:text-base truncate">${c.name.toUpperCase()}</span>
+      </button>
+      <div class="flex items-center gap-2 sm:gap-4">
+        <div class="flex items-center gap-2">
+          <span class="w-9 h-9 rounded-full bg-brand grid place-items-center ring-2 ring-white/15 text-sm font-bold tracking-wide" title="${esc(state.user.email)}">${esc(initials(state.user.name))}</span>
+          <span class="hidden md:inline text-sm max-w-[16rem] truncate"><span class="text-white/80">¡Hola!,</span> <span class="font-semibold">${esc(state.user.name.toUpperCase())}</span></span>
+        </div>
+        <button id="logout" class="flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-lg hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand transition">
+          ${icon('logout', 'w-5 h-5')}<span class="hidden sm:inline">Cerrar sesión</span>
+        </button>
+      </div>
+    </div>
+  </header>`;
+}
+
+function WelcomeStrip() {
+  return `
+  <section class="bg-[#EAF0F1] border-b border-[#dde6e7]">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-6 flex items-center gap-4">
+      <span class="w-12 h-12 shrink-0 rounded-full bg-white shadow-card grid place-items-center text-brand">${smile('w-8 h-8')}</span>
+      <p class="text-lg sm:text-2xl text-ink-soft font-medium leading-snug">
+        Una <span class="text-petrol font-bold">solución</span> que facilita tu <span class="text-petrol font-bold">experiencia</span>
+      </p>
+    </div>
+  </section>`;
+}
+
+function BackBar(title) {
+  return `
+  <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5 mb-6 sm:mb-8">
+    <button data-go="home" class="self-start inline-flex items-center gap-2 text-petrol font-semibold text-sm px-3.5 py-2 rounded-full bg-white shadow-card border border-[#e3eaea] hover:border-brand hover:text-brand-600 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+      ${icon('arrowLeft', 'w-4 h-4')} Volver
+    </button>
+    ${title ? `<h1 class="text-xl sm:text-2xl font-bold text-ink">${title}</h1>` : ''}
+  </div>`;
+}
+
+function Footer() {
+  return `<footer class="max-w-6xl mx-auto px-4 sm:px-6 py-8 text-xs text-ink-mute">© 2026 SForYou · Plataforma de beneficios · Demo interactiva</footer>`;
+}
+
+/* =========================================================
+   Fase 1 · Login / selección de compañía
+   ========================================================= */
+function Login() {
+  const p = state.pending;
+  return `
+  <main class="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#0B4F4C] via-[#0d6a5f] to-[#0f8f6f] flex items-center justify-center px-4 py-10">
+    <!-- formas orgánicas / marca de agua -->
+    <div class="pointer-events-none absolute -top-32 -left-32 w-96 h-96 rounded-full bg-white/5 blur-2xl"></div>
+    <div class="pointer-events-none absolute top-1/3 -left-20 w-72 h-72 rounded-full bg-brand/20 blur-3xl"></div>
+    <svg class="pointer-events-none absolute -bottom-24 -right-24 w-[26rem] h-[26rem] sm:w-[36rem] sm:h-[36rem] text-white/[0.07]" viewBox="0 0 200 200" fill="none" aria-hidden="true">
+      <circle cx="100" cy="100" r="96" fill="currentColor"/>
+      <circle cx="72" cy="78" r="11" fill="#0B4F4C" fill-opacity=".35"/>
+      <circle cx="128" cy="78" r="11" fill="#0B4F4C" fill-opacity=".35"/>
+      <path d="M52 112c12 22 29 34 48 34s36-12 48-34" stroke="#0B4F4C" stroke-opacity=".35" stroke-width="14" stroke-linecap="round"/>
+    </svg>
+
+    <section class="fade-in relative w-full max-w-md bg-white rounded-[20px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.35)] p-7 sm:p-10">
+      ${state.step === 'credentials' ? CredentialsStep() : CompanyStep()}
+    </section>
+  </main>`;
+}
+
+function CompanyStep() {
+  const p = state.pending;
+  return `
+      ${logo()}
+      <div class="mt-6 flex items-center gap-2 text-xs font-semibold text-ink-mute"><span class="w-6 h-1.5 rounded-full bg-brand"></span><span class="w-6 h-1.5 rounded-full bg-[#e3eaea]"></span><span class="ml-1">Paso 1 de 2</span></div>
+      <h1 class="mt-8 text-2xl sm:text-[28px] font-extrabold text-ink tracking-tight">¡Nos alegra mucho verte!</h1>
+      <p class="mt-2 text-ink-soft leading-relaxed text-[15px]">Bienvenido a SForYou, ingresa a tu compañía y comienza a disfrutar de los beneficios que te ofrecemos.</p>
+
+      <div class="mt-8">
+        <label id="combo-label" class="block text-sm font-semibold text-ink mb-2">Compañía</label>
+        <div class="relative" id="combo">
+          <button id="combo-btn" type="button" aria-haspopup="listbox" aria-expanded="${state.comboOpen}" aria-labelledby="combo-label"
+            class="w-full h-14 flex items-center gap-3 px-4 rounded-xl border bg-white text-left transition
+                   ${state.comboOpen ? 'border-brand ring-4 ring-brand/15' : 'border-[#d7e0e0] hover:border-[#b9c8c7]'} focus:outline-none focus-visible:border-brand focus-visible:ring-4 focus-visible:ring-brand/15">
+            ${p ? `<span class="w-8 h-8 rounded-full grid place-items-center text-white text-xs font-bold" style="background:${p.bg}">${p.initials}</span>
+                   <span class="flex-1 font-medium text-ink">${p.name}</span>`
+                : `<span class="w-8 h-8 rounded-full grid place-items-center bg-canvas text-ink-mute">${icon('building', 'w-4 h-4')}</span>
+                   <span class="flex-1 text-ink-mute">Selecciona tu compañía</span>`}
+            <span class="text-ink-mute transition-transform ${state.comboOpen ? 'rotate-180' : ''}">${icon('chevronDown')}</span>
+          </button>
+
+          ${state.comboOpen ? `
+          <ul id="combo-list" role="listbox" tabindex="-1" aria-labelledby="combo-label"
+              class="pop absolute z-20 mt-2 w-full max-h-72 overflow-auto scroll-thin bg-white rounded-xl border border-[#e3eaea] shadow-lift py-2 focus:outline-none">
+            ${COMPANIES.map((c, i) => `
+              <li role="option" data-company="${c.id}" data-idx="${i}" aria-selected="${p && p.id === c.id}"
+                  class="combo-opt flex items-center gap-3 px-3 mx-2 py-2.5 rounded-lg cursor-pointer hover:bg-brand-50 aria-selected:bg-brand-50">
+                <span class="w-9 h-9 shrink-0 rounded-full grid place-items-center text-white text-xs font-bold shadow-sm" style="background:${c.bg}">${c.initials}</span>
+                <span class="flex-1 text-[15px] text-ink font-medium">${c.name}</span>
+                ${p && p.id === c.id ? `<span class="text-brand">${icon('check', 'w-5 h-5')}</span>` : ''}
+              </li>`).join('')}
+          </ul>` : ''}
+        </div>
+      </div>
+
+      <button id="enter" ${p ? '' : 'disabled'}
+        class="mt-6 w-full h-12 rounded-xl font-semibold flex items-center justify-center gap-2 transition
+               bg-brand text-white hover:bg-brand-600 shadow-[0_10px_20px_-8px_rgba(0,179,126,0.6)]
+               disabled:bg-[#dfe7e6] disabled:text-ink-mute disabled:shadow-none disabled:cursor-not-allowed focus:outline-none focus-visible:ring-4 focus-visible:ring-brand/30">
+        Ingresar ${icon('arrowRight', 'w-4 h-4')}
+      </button>
+`;
+}
+
+function CredentialsStep() {
+  const c = state.company;
+  const field = (id, label, type, ic, placeholder, autocomplete, extra = '') => `
+    <div>
+      <label for="${id}" class="block text-sm font-semibold text-ink mb-2">${label}</label>
+      <div class="relative">
+        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-ink-mute pointer-events-none">${icon(ic, 'w-5 h-5')}</span>
+        <input id="${id}" name="${id}" type="${type}" placeholder="${placeholder}" autocomplete="${autocomplete}"
+          class="w-full h-12 pl-12 ${extra ? 'pr-12' : 'pr-4'} rounded-xl border border-[#d7e0e0] bg-white text-ink placeholder:text-ink-mute transition
+                 hover:border-[#b9c8c7] focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15" />
+        ${extra}
+      </div>
+    </div>`;
+  return `
+      <div class="flex items-center justify-between gap-3">
+        ${logo()}
+        <button id="change-company" type="button" class="flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full bg-canvas border border-[#e3eaea] hover:border-brand transition text-sm" title="Cambiar compañía">
+          <span class="w-6 h-6 rounded-full grid place-items-center text-white text-[10px] font-bold" style="background:${c.bg}">${c.initials}</span>
+          <span class="font-semibold text-ink">${c.name}</span>
+        </button>
+      </div>
+      <div class="mt-6 flex items-center gap-2 text-xs font-semibold text-ink-mute"><span class="w-6 h-1.5 rounded-full bg-brand"></span><span class="w-6 h-1.5 rounded-full bg-brand"></span><span class="ml-1">Paso 2 de 2</span></div>
+      <h1 class="mt-4 text-2xl sm:text-[28px] font-extrabold text-ink tracking-tight">Inicia sesión</h1>
+      <p class="mt-2 text-ink-soft leading-relaxed text-[15px]">Ingresa tus datos para acceder a los beneficios de <span class="font-semibold text-petrol">${c.name}</span>.</p>
+
+      <form id="cred-form" class="mt-7 space-y-4" novalidate>
+        ${field('name', 'Nombre', 'text', 'user', 'Ej. Sergio Felipe', 'name')}
+        ${field('email', 'Correo corporativo', 'text', 'at', 'nombre@empresa.com', 'email')}
+        ${field('password', 'Contraseña', 'password', 'lock', '••••••••', 'current-password',
+          `<button type="button" id="toggle-pw" class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-ink-mute hover:text-petrol hover:bg-canvas" aria-label="Mostrar contraseña">${icon('eye', 'w-5 h-5')}</button>`)}
+
+        <button type="submit"
+          class="!mt-6 w-full h-12 rounded-xl font-semibold flex items-center justify-center gap-2 transition bg-brand text-white hover:bg-brand-600 shadow-[0_10px_20px_-8px_rgba(0,179,126,0.6)] focus:outline-none focus-visible:ring-4 focus-visible:ring-brand/30">
+          Iniciar sesión ${icon('arrowRight', 'w-4 h-4')}
+        </button>
+      </form>
+      <button id="back-company" type="button" class="mt-4 w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-petrol hover:text-brand-600">
+        ${icon('arrowLeft', 'w-4 h-4')} Cambiar compañía
+      </button>
+`;
+}
+
+/* =========================================================
+   Fase 2 · Menú principal
+   ========================================================= */
+function Home() {
+  const card = (route, ic, title, desc) => `
+    <button data-go="${route}" class="group text-left bg-white rounded-card shadow-card border border-[#e8eeee] p-6 sm:p-8 flex flex-col gap-5
+             hover:shadow-lift hover:-translate-y-1 hover:border-brand/40 transition duration-200 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand/25">
+      <span class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-brand-50 text-brand grid place-items-center group-hover:bg-brand group-hover:text-white transition">
+        ${icon(ic, 'w-9 h-9 sm:w-10 sm:h-10')}
+      </span>
+      <span>
+        <span class="block text-xl sm:text-2xl font-bold text-ink">${title}</span>
+        <span class="block mt-1.5 text-ink-soft">${desc}</span>
+      </span>
+      <span class="mt-auto inline-flex items-center gap-2 text-sm font-semibold text-petrol group-hover:text-brand-600 transition">
+        Ingresar ${icon('arrowRight', 'w-4 h-4 group-hover:translate-x-1 transition-transform')}
+      </span>
+    </button>`;
+
+  return `
+  ${Navbar()}
+  ${WelcomeStrip()}
+  <main class="fade-in max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+    <h2 class="text-2xl sm:text-3xl font-bold text-ink">¿Qué quieres hacer?</h2>
+    <p class="mt-2 text-ink-soft">Elige una opción para continuar.</p>
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+      ${card('beneficios', 'gift', 'Beneficios', 'Consulta tu cupo Beneflex y los beneficios que elegiste para el ciclo vigente.')}
+      ${card('certificados', 'mail', 'Certificados', 'Descarga cartas laborales, certificados y comprobantes de nómina.')}
+    </div>
+  </main>
+  ${Footer()}`;
+}
+
+/* =========================================================
+   Fase 3 · Beneficios
+   ========================================================= */
+function Beneficios() {
+  const total = CYCLE.selected.reduce((s, b) => s + b.amount, 0);
+  const pct = Math.min(100, Math.round(total / CYCLE.beneflex * 100));
+
+  const balance = (ic, label, value, extra) => `
+    <article class="bg-white rounded-card shadow-card border border-[#e8eeee] p-5 sm:p-6 flex items-start gap-4">
+      <span class="w-12 h-12 shrink-0 rounded-xl bg-brand-50 text-brand grid place-items-center">${icon(ic, 'w-6 h-6')}</span>
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-medium text-ink-soft">${label}</p>
+        <p class="mt-1 text-3xl sm:text-[34px] font-extrabold text-petrol tracking-tight tabular-nums">${money(value)}</p>
+        ${extra || ''}
+      </div>
+    </article>`;
+
+  return `
+  ${Navbar()}
+  <main class="fade-in max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+    ${BackBar('')}
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-2">
+      <h1 class="text-2xl sm:text-3xl font-bold text-ink">${CYCLE.label}</h1>
+      <p class="inline-flex items-center gap-2 text-sm text-ink-soft">
+        <span class="text-brand">${icon('calendar', 'w-4 h-4')}</span>
+        <span class="hidden lg:inline text-[#c7d3d2]">|</span> ${CYCLE.validity}
+      </p>
+    </div>
+
+    <section class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+      ${balance('wallet', 'Cupo Beneflex', CYCLE.beneflex, `
+        <div class="mt-4">
+          <div class="flex justify-between text-xs text-ink-soft mb-1.5"><span>Asignado a beneficios</span><span class="font-semibold text-petrol">${pct}%</span></div>
+          <div class="h-2 rounded-full bg-[#e8efee] overflow-hidden"><div class="h-full rounded-full bg-brand" style="width:${pct}%"></div></div>
+        </div>`)}
+      ${balance('trending', 'Inversión Fomente', CYCLE.fomente, `<p class="mt-3 text-xs text-ink-mute">Sin aportes registrados en este ciclo.</p>`)}
+    </section>
+
+    <section class="mt-10">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg sm:text-xl font-bold text-ink">Beneficios seleccionados</h2>
+        <span class="text-xs font-semibold text-petrol bg-petrol-50 px-2.5 py-1 rounded-full">${CYCLE.selected.length} ítems</span>
+      </div>
+      <ul class="space-y-3">
+        ${CYCLE.selected.map(b => `
+          <li class="bg-white rounded-card shadow-card border border-[#e8eeee] p-4 sm:p-5 flex items-center gap-4 hover:border-brand/40 transition">
+            <span class="w-12 h-12 shrink-0 rounded-xl bg-brand-50 text-brand grid place-items-center">${icon(b.icon, 'w-6 h-6')}</span>
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-ink">${b.name}</p>
+              <p class="text-sm text-ink-mute truncate">${b.note}</p>
+            </div>
+            <p class="text-lg sm:text-xl font-bold text-petrol tabular-nums">${money(b.amount)}</p>
+          </li>`).join('')}
+      </ul>
+      <div class="mt-4 flex items-center justify-between rounded-card bg-petrol text-white px-5 py-4">
+        <span class="text-sm font-medium text-white/80">Total asignado</span>
+        <span class="text-xl font-bold tabular-nums">${money(total)}</span>
+      </div>
+    </section>
+  </main>
+  ${Footer()}`;
+}
+
+/* =========================================================
+   Fase 4 · Certificados
+   ========================================================= */
+function Certificados() {
+  return `
+  ${Navbar()}
+  ${WelcomeStrip()}
+  <main class="fade-in max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+    ${BackBar('')}
+    <h1 class="text-2xl sm:text-3xl font-bold text-ink">¡Aquí podrás gestionar tus documentos!</h1>
+    <p class="mt-2 text-ink-soft">Selecciona el documento que necesitas y lo generamos al instante.</p>
+
+    <section class="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      ${DOCUMENTS.map(d => `
+        <button data-doc="${d.id}" class="doc-card group text-left bg-white rounded-card shadow-card border border-[#e8eeee] p-6 flex flex-col gap-4
+                 hover:shadow-lift hover:-translate-y-1 hover:border-brand/40 transition duration-200 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand/25">
+          <div class="flex items-start justify-between">
+            <span class="w-14 h-14 rounded-2xl bg-brand-50 text-brand grid place-items-center group-hover:bg-brand group-hover:text-white transition">${icon(d.icon, 'w-7 h-7')}</span>
+            <span class="doc-status text-ink-mute group-hover:text-brand transition">${icon('download', 'w-5 h-5')}</span>
+          </div>
+          <div>
+            <p class="font-semibold text-ink text-[17px] leading-snug">${d.name}</p>
+            <p class="mt-1 text-sm text-ink-soft">${d.desc}</p>
+          </div>
+        </button>`).join('')}
+    </section>
+  </main>
+  ${Footer()}`;
+}
+
+/* =========================================================
+   Toasts
+   ========================================================= */
+function toast({ title, msg, type = 'progress', duration = 2600 }) {
+  const wrap = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.setAttribute('role', 'status');
+  el.className = 'toast-in pointer-events-auto w-full sm:w-96 bg-white rounded-xl shadow-lift border border-[#e3eaea] overflow-hidden';
+  const ic = type === 'info'
+    ? `<span class="w-9 h-9 shrink-0 rounded-full bg-petrol-50 text-petrol grid place-items-center">${icon('info', 'w-5 h-5')}</span>`
+    : `<span class="t-ic w-9 h-9 shrink-0 rounded-full bg-brand-50 text-brand grid place-items-center">
+         <svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+       </span>`;
+  el.innerHTML = `
+    <div class="flex items-start gap-3 p-4">
+      ${ic}
+      <div class="flex-1 min-w-0">
+        <p class="t-title font-semibold text-ink text-sm">${title}</p>
+        <p class="t-msg text-sm text-ink-soft mt-0.5">${msg}</p>
+      </div>
+      <button class="t-close text-ink-mute hover:text-ink" aria-label="Cerrar">${icon('x', 'w-4 h-4')}</button>
+    </div>
+    ${type === 'progress' ? '<div class="h-1 bg-brand-50"><div class="progress h-full bg-brand"></div></div>' : ''}`;
+  wrap.appendChild(el);
+  const close = () => { el.classList.add('toast-out'); setTimeout(() => el.remove(), 250); };
+  el.querySelector('.t-close').onclick = close;
+  let timer = setTimeout(close, duration);
+  return {
+    el,
+    update({ title, msg }) {
+      el.querySelector('.t-title').textContent = title;
+      el.querySelector('.t-msg').textContent = msg;
+      const ic = el.querySelector('.t-ic');
+      if (ic) ic.innerHTML = icon('check', 'w-5 h-5');
+      clearTimeout(timer); timer = setTimeout(close, 2600);
+    }
+  };
+}
+
+/* Simula la generación y descarga de un documento (archivo .txt de ejemplo) */
+function downloadDoc(doc, btn) {
+  if (btn.dataset.busy) return;
+  btn.dataset.busy = '1';
+  const status = btn.querySelector('.doc-status');
+  status.innerHTML = `<svg class="w-5 h-5 animate-spin text-brand" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
+  const t = toast({ title: 'Generando documento…', msg: doc.name, duration: 5000 });
+
+  setTimeout(() => {
+    const content = [
+      'SForYou · ' + state.company.name,
+      '',
+      doc.name.toUpperCase(),
+      'Colaborador: ' + state.user.name,
+      'Correo: ' + state.user.email,
+      'Fecha de expedición: ' + new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }),
+      '',
+      'Documento de demostración generado por la maqueta interactiva.'
+    ].join('\n');
+    const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }));
+    const a = Object.assign(document.createElement('a'), { href: url, download: doc.id + '_' + state.user.name.trim().replace(/\s+/g, '_').toLowerCase() + '.txt' });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    t.update({ title: 'Descarga lista', msg: doc.name + ' se descargó correctamente.' });
+    status.innerHTML = `<span class="text-brand">${icon('check', 'w-5 h-5')}</span>`;
+    setTimeout(() => { status.innerHTML = icon('download', 'w-5 h-5'); delete btn.dataset.busy; }, 2200);
+  }, 1600);
+}
+
+/* =========================================================
+   Eventos por vista
+   ========================================================= */
+function bind(route) {
+  document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
+
+  const lo = document.getElementById('logout');
+  if (lo) lo.onclick = () => {
+    state.company = null; state.user = null; state.pending = null; state.step = 'company';
+    ss.clear();
+    go('login');
+  };
+
+  if (route === 'login') bindLogin();
+  if (route === 'certificados') {
+    document.querySelectorAll('.doc-card').forEach(btn =>
+      btn.addEventListener('click', () => downloadDoc(DOCUMENTS.find(d => d.id === btn.dataset.doc), btn)));
+  }
+}
+
+function bindLogin() {
+  if (state.step === 'credentials') return bindCredentials();
+  const btn = document.getElementById('combo-btn');
+  const list = document.getElementById('combo-list');
+  const rerender = (focusList) => {
+    render();
+    if (focusList) {
+      const l = document.getElementById('combo-list');
+      const sel = l && (l.querySelector('[aria-selected="true"]') || l.querySelector('.combo-opt'));
+      if (sel) { sel.classList.add('bg-brand-50'); sel.dataset.active = '1'; l.focus(); sel.scrollIntoView({ block: 'nearest' }); }
+    } else document.getElementById('combo-btn')?.focus();
+  };
+  const choose = id => {
+    state.pending = COMPANIES.find(c => c.id === id);
+    state.comboOpen = false;
+    rerender(false);
+  };
+
+  btn.onclick = () => { state.comboOpen = !state.comboOpen; rerender(state.comboOpen); };
+  btn.onkeydown = e => {
+    if (['ArrowDown', 'Enter', ' '].includes(e.key) && !state.comboOpen) { e.preventDefault(); state.comboOpen = true; rerender(true); }
+  };
+
+  if (list) {
+    list.querySelectorAll('.combo-opt').forEach(o => o.addEventListener('click', () => choose(o.dataset.company)));
+    list.addEventListener('keydown', e => {
+      const opts = [...list.querySelectorAll('.combo-opt')];
+      let i = opts.findIndex(o => o.dataset.active === '1');
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (i >= 0) { opts[i].classList.remove('bg-brand-50'); delete opts[i].dataset.active; }
+        i = e.key === 'ArrowDown' ? Math.min(opts.length - 1, i + 1) : Math.max(0, i - 1);
+        opts[i].classList.add('bg-brand-50'); opts[i].dataset.active = '1'; opts[i].scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'Enter' && i >= 0) { e.preventDefault(); choose(opts[i].dataset.company); }
+      else if (e.key === 'Escape') { state.comboOpen = false; rerender(false); }
+    });
+    // cerrar al hacer clic fuera
+    setTimeout(() => document.addEventListener('click', function off(e) {
+      if (!document.getElementById('combo')?.contains(e.target)) {
+        document.removeEventListener('click', off);
+        if (state.comboOpen) { state.comboOpen = false; render(); }
+      }
+    }), 0);
+  }
+
+  document.getElementById('enter').onclick = () => {
+    const c = state.pending;
+    if (!c) return;
+    state.company = c;
+    state.step = 'credentials';
+    render();
+    document.getElementById('name')?.focus();
+  };
+}
+
+function bindCredentials() {
+  const form = document.getElementById('cred-form');
+  const back = () => { state.step = 'company'; state.pending = state.company; state.company = null; render(); };
+  document.getElementById('change-company').onclick = back;
+  document.getElementById('back-company').onclick = back;
+
+  const pw = document.getElementById('password');
+  const tg = document.getElementById('toggle-pw');
+  tg.onclick = () => {
+    const show = pw.type === 'password';
+    pw.type = show ? 'text' : 'password';
+    tg.innerHTML = icon(show ? 'eyeOff' : 'eye', 'w-5 h-5');
+    tg.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
+  };
+
+  form.onsubmit = e => {
+    e.preventDefault();
+    // Login no funcional: cualquier dato (incluso vacío) permite ingresar; solo se usa el nombre para el saludo
+    const user = {
+      name: document.getElementById('name').value.trim().replace(/\s+/g, ' ') || 'Colaborador',
+      email: document.getElementById('email').value.trim()
+    };
+    state.user = user;
+    ss.set('sfy-user', user);
+    ss.set('sfy-company', state.company.id);
+    state.step = 'company'; state.pending = null;
+    go('home');
+  };
+}
+
+render();
+</script>
+</body>
+</html>
